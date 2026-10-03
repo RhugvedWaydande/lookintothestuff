@@ -38,7 +38,12 @@ app.use(
 );
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-
+console.log('[static] serving front-end files');
+['index.html', 'styles.css', 'app.js', 'privacy.html', 'terms.html', 'robots.txt'].forEach((f) =>
+  app.get(f === 'index.html' ? ['/', '/index.html'] : '/' + f, (req, res) =>
+    res.sendFile(path.join(__dirname, f))
+  )
+);
 /* ---------------- Rate limits (protect Gemini quota + email inbox) ---------------- */
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 15, standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many requests. Please wait a minute and try again.', code: 'RATE_LIMITED' } });
