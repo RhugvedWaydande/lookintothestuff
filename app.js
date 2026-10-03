@@ -100,7 +100,7 @@ function loadPlayer(id, start = 0, autoplay = false) {
     $('.play', wrap).onclick = () => loadPlayer(id, 0, true);
     return;
   }
-  wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?start=${start}&autoplay=1&rel=0" title="YouTube player" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
+  wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?start=${start}&autoplay=1&rel=0" title="YouTube player" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
 }
 
 /* ---------- Summarize ---------- */
