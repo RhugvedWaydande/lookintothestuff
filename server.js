@@ -34,6 +34,7 @@ app.use(
       },
     },
     frameguard: false, // allow embedding in the preview iframe
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   })
 );
 app.use(express.json({ limit: '32kb' }));
