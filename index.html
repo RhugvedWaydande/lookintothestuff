@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>lookintothestuff — AI YouTube Summaries &amp; Q&amp;A</title>
+  <meta name="description" content="Paste a YouTube link, get an instant AI summary, and ask questions about the video. Powered by Gemini." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='14' cy='14' r='9' fill='none' stroke='%2300f0ff' stroke-width='3'/><path d='M21 21l7 7' stroke='%23a855f7' stroke-width='3' stroke-linecap='round'/></svg>" />
+  <meta name="theme-color" content="#05060f" />
+  <meta property="og:title" content="lookintothestuff — AI YouTube Summaries &amp; Q&amp;A" />
+  <meta property="og:description" content="Paste a YouTube link, get an instant AI summary, then ask it anything." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-orb orb1" aria-hidden="true"></div>
+  <div class="bg-orb orb2" aria-hidden="true"></div>
+
+  <header class="nav glass">
+    <a class="brand" href="#home" data-route="home">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><circle cx="14" cy="14" r="9" fill="none" stroke="url(#g)" stroke-width="3"/><path d="M21 21l7 7" stroke="url(#g)" stroke-width="3" stroke-linecap="round"/><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#00f0ff"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs></svg>
+      <span>lookinto<b>thestuff</b></span>
+    </a>
+    <nav>
+      <a href="#home" data-route="home">Home</a>
+      <a href="#summarize" data-route="summarize">Summarize</a>
+      <a href="#chat" data-route="chat">Chat</a>
+      <a href="#support" data-route="support">Support</a>
+    </nav>
+    <span id="status-pill" class="pill" title="AI status">● connecting</span>
+  </header>
+
+  <main>
+    <!-- HOME -->
+    <section id="view-home" class="view">
+      <div class="hero">
+        <p class="eyebrow">Powered by Gemini</p>
+        <h1>Look into <span class="grad">any video</span><br/>in seconds.</h1>
+        <p class="lead">Paste a YouTube link. Get a crisp summary with timestamps. Then ask it anything.</p>
+        <form id="hero-form" class="url-bar glass">
+          <input id="hero-url" type="text" inputmode="url" placeholder="https://youtube.com/watch?v=…" aria-label="YouTube link" autocomplete="off" />
+          <button class="btn primary" type="submit">Summarize →</button>
+        </form>
+        <p id="hero-error" class="error" role="alert"></p>
+      </div>
+      <div class="features">
+        <div class="card glass"><div class="ico">⚡</div><h3>Instant summaries</h3><p>TL;DR, key points and a clickable timeline — in short, standard or detailed depth.</p></div>
+        <div class="card glass"><div class="ico">❓</div><h3>Ask the video</h3><p>Question the content directly. Answers cite timestamps, and say so when the video doesn't cover it.</p></div>
+        <div class="card glass"><div class="ico">💬</div><h3>Chat with Nova</h3><p>Our assistant helps you use the site and answers general questions.</p></div>
+        <div class="card glass"><div class="ico">✉️</div><h3>Human support</h3><p>Stuck? Your message goes straight to our team's inbox and we reply by email.</p></div>
+      </div>
+      <ol class="steps">
+        <li><span>01</span>Paste link</li><li><span>02</span>Read summary</li><li><span>03</span>Ask questions</li>
+      </ol>
+    </section>
+
+    <!-- SUMMARIZE -->
+    <section id="view-summarize" class="view" hidden>
+      <form id="sum-form" class="url-bar glass">
+        <input id="sum-url" type="text" inputmode="url" placeholder="Paste a YouTube link…" aria-label="YouTube link" autocomplete="off" />
+        <div class="seg" role="radiogroup" aria-label="Summary length">
+          <label><input type="radio" name="len" value="short" />Short</label>
+          <label><input type="radio" name="len" value="standard" checked />Standard</label>
+          <label><input type="radio" name="len" value="detailed" />Detailed</label>
+        </div>
+        <button class="btn primary" type="submit" id="sum-btn">Summarize</button>
+      </form>
+      <p id="sum-error" class="error" role="alert"></p>
+
+      <div id="empty-state" class="empty glass">
+        <div class="scan"></div>
+        <p>Drop a link above to begin. Try any lecture, podcast, tutorial or review.</p>
+      </div>
+
+      <div id="workspace" class="workspace" hidden>
+        <div class="col-left">
+          <div class="player glass"><div id="player-wrap" class="ratio"></div>
+            <div class="meta"><h2 id="v-title"></h2><p id="v-author"></p></div>
+          </div>
+          <article class="glass panel">
+            <div class="panel-head"><h3>Summary</h3>
+              <div class="actions"><button class="btn ghost sm" id="copy-btn" type="button">Copy</button><button class="btn ghost sm" id="dl-btn" type="button">Download .md</button></div>
+            </div>
+            <div id="summary" class="md"></div>
+          </article>
+        </div>
+        <aside class="col-right glass panel qa">
+          <div class="panel-head"><h3>Ask this video</h3><button class="btn ghost sm" id="qa-clear" type="button">Clear</button></div>
+          <div id="qa-log" class="log" aria-live="polite">
+            <div class="chips">
+              <button type="button" class="chip">What is the main argument?</button>
+              <button type="button" class="chip">List the tools mentioned</button>
+              <button type="button" class="chip">Explain it like I'm 12</button>
+            </div>
+          </div>
+          <form id="qa-form" class="composer">
+            <input id="qa-input" type="text" placeholder="Ask about the video…" maxlength="1000" autocomplete="off" />
+            <button class="btn primary" type="submit" aria-label="Send">➤</button>
+          </form>
+        </aside>
+      </div>
+    </section>
+
+    <!-- CHAT -->
+    <section id="view-chat" class="view" hidden>
+      <div class="chat glass">
+        <div class="chat-head">
+          <div class="avatar">N</div>
+          <div><h3>Nova</h3><p>lookintothestuff assistant</p></div>
+          <button class="btn ghost sm" id="chat-clear" type="button">New chat</button>
+        </div>
+        <div id="chat-log" class="log" aria-live="polite"></div>
+        <form id="chat-form" class="composer">
+          <input id="chat-input" type="text" placeholder="Message Nova…" maxlength="2000" autocomplete="off" />
+          <button class="btn primary" type="submit" aria-label="Send">➤</button>
+        </form>
+        <p class="hint">Need a human? <a href="#support" data-route="support">Contact support</a>.</p>
+      </div>
+    </section>
+
+    <!-- SUPPORT -->
+    <section id="view-support" class="view" hidden>
+      <div class="support">
+        <div class="support-intro">
+          <p class="eyebrow">Support</p>
+          <h2>Talk to a <span class="grad">human</span>.</h2>
+          <p class="lead">Your message is delivered straight to our team's inbox. We reply directly to the email you give us — usually within 24 hours.</p>
+          <ul class="ticks"><li>Ticket ID for every request</li><li>Confirmation email sent to you</li><li>We never share your email</li></ul>
+        </div>
+        <form id="support-form" class="glass panel form" novalidate>
+          <div class="row">
+            <label>Name<input name="name" required maxlength="100" autocomplete="name" /></label>
+            <label>Email<input name="email" type="email" required maxlength="200" autocomplete="email" /></label>
+          </div>
+          <label>Category
+            <select name="category"><option value="general">General question</option><option value="bug">Bug report</option><option value="feature">Feature request</option><option value="billing">Billing</option><option value="other">Other</option></select>
+          </label>
+          <label>Related video (optional)<input name="videoUrl" maxlength="300" placeholder="https://youtu.be/…" /></label>
+          <label>Message<textarea name="message" rows="6" required minlength="10" maxlength="5000"></textarea></label>
+          <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <button class="btn primary" type="submit">Send to support</button>
+          <p id="support-msg" class="form-msg" role="status"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer>© <span id="yr"></span> lookintothestuff · AI can make mistakes — verify important info. · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></footer>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
