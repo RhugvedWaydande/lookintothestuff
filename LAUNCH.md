@@ -14,9 +14,10 @@
 
 ---
 
-## Step 0 — Download the project
-1. In this workspace, download **`lookintothestuff-upload.zip`**.
-2. Right-click → **Extract All** (Windows) or double-click (Mac). You'll get a folder containing `server.js`, `package.json`, `public/`, and other files.
+## Step 0 — Get your own copy of the code
+The code is public at **https://github.com/RhugvedWaydande/lookintothestuff-**.
+1. Open that page and click **Fork** (top right) → **Create fork**. You now have your own copy that Render can deploy.
+2. Everything lives at the **root** of the repo: `server.js`, `index.html`, `app.js`, `styles.css`, `package.json` and `render.yaml`. There are no sub-folders to worry about.
 
 ---
 
@@ -38,14 +39,11 @@
 
 ---
 
-## Step 3 — Put the code on GitHub (5 min, no Git needed)
-1. Create a free account at **https://github.com**.
-2. Click **+** (top right) → **New repository** → name: `lookintothestuff` → choose **Private** → **Create repository**.
-3. On the new page, click **"uploading an existing file"**.
-4. Open your extracted folder, **select everything inside it** (including the `public` folder), and **drag it onto the GitHub page**.
-   - ✅ Check that `public/`, `server.js`, `package.json`, `package-lock.json` and `render.yaml` all appear in the list.
-   - ❌ Never upload a `.env` file or a `node_modules` folder.
-5. Click **Commit changes**.
+## Step 3 — Point Render at your fork (2 min)
+1. If you haven't already, click **Fork** on **https://github.com/RhugvedWaydande/lookintothestuff-** so the code is under your own GitHub account.
+2. Render will connect to **your** fork in Step 4 — it needs permission to read it, so make sure you're signed in to Render with the same GitHub account.
+3. If you ever want a private copy instead: **+** (top right) → **Import repository** → paste the URL → choose a name → **Create**. Don't hand-upload files; the layouts that break are always the hand-uploaded ones.
+   - ❌ Never commit a `.env` file or a `node_modules` folder — `.gitignore` already blocks both.
 
 ---
 
@@ -74,6 +72,7 @@
 | `SUPPORT_EMAIL` | the inbox that should receive tickets (e.g. `you@gmail.com`) |
 | `SMTP_FROM` | the **verified Brevo sender** (same Gmail is fine) |
 | `NODE_VERSION` | `20` |
+| `NODE_ENV` | `production` — locks the site so other websites can't iframe it |
 
 5. Open **Advanced** → **Health Check Path** → `/api/health`.
 6. Click **Deploy Web Service**. Wait 2–4 minutes until you see **"Live"**. The log should show:
@@ -125,7 +124,7 @@ To change a key: Render → your service → **Environment** → edit → **Save
 | "This video could not be analysed" | The video is private, age-restricted or too long → try another. On the free tier, keep videos under about 45 min |
 | Support says "could not send your message" | Check Render **Logs** for `Brevo 4xx`: **401** = wrong API key; **400 sender** = `SMTP_FROM` isn't a verified sender |
 | Build fails: "Cannot find module" | `package.json` or `server.js` wasn't uploaded to the **top level** of the repo (not inside a subfolder) |
-| Page is blank or unstyled | The `public/` folder is missing in GitHub → upload it again |
+| Page is blank or unstyled | `styles.css` / `app.js` are missing from the **repo root** → restore them (they must sit next to `index.html`) |
 
 ---
 
