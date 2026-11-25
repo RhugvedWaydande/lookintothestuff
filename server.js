@@ -18,6 +18,15 @@ const DEMO_MODE = !GEMINI_API_KEY; // no key → canned responses so the UI is s
 const GEMINI_URL = (m) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`;
 
+// Who may iframe the site. Locked to the site itself in production; open elsewhere so
+// local/preview tooling can embed it. Override with FRAME_ANCESTORS="'self',https://a.com".
+const FRAME_ANCESTORS = (
+  process.env.FRAME_ANCESTORS || (process.env.NODE_ENV === 'production' ? "'self'" : '*')
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 const app = express();
 app.set('trust proxy', 1);
 app.use(
@@ -30,16 +39,17 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'"],
         scriptSrc: ["'self'"],
         connectSrc: ["'self'"],
-        frameAncestors: ['*'],
+        frameAncestors: FRAME_ANCESTORS,
       },
     },
-    frameguard: false, // allow embedding in the preview iframe
-        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    // X-Frame-Options is intentionally off; frame-ancestors above is the single source of truth,
+    // because X-Frame-Options has no way to express an allowlist and would override it.
+    frameguard: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   })
 );
 app.use(express.json({ limit: '32kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-console.log('[static] serving front-end files');
+// Front-end files are served from the repo root (see the routes below) — there is no public/ dir.
 ['index.html', 'styles.css', 'app.js', 'privacy.html', 'terms.html', 'robots.txt'].forEach((f) =>
   app.get(f === 'index.html' ? ['/', '/index.html'] : '/' + f, (req, res) =>
     res.sendFile(path.join(__dirname, f))

@@ -1,15 +1,33 @@
 {
   "name": "lookintothestuff",
   "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "description": "AI YouTube summaries and Q&A powered by Gemini",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --check server.js && node --check app.js && echo \"syntax OK\""
+  },
+  "keywords": [
+    "youtube",
+    "summarizer",
+    "gemini",
+    "gemini-api",
+    "ai",
+    "llm",
+    "express",
+    "youtube-summary"
+  ],
+  "author": "rhugved",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RhugvedWaydande/lookintothestuff-.git"
+  },
+  "homepage": "https://lookintothestuff.onrender.com",
+  "bugs": {
+    "url": "https://github.com/RhugvedWaydande/lookintothestuff-/issues"
+  },
   "dependencies": {
     "dotenv": "^18.0.5",
     "express": "^5.2.1",

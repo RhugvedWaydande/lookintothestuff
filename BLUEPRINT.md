@@ -1,7 +1,7 @@
 # lookintothestuff — Product & Technical Blueprint
 
 > AI-powered YouTube summaries and Q&A, built on the Gemini API.
-> A working prototype is in this folder (`server.js` + `public/`). This document covers the full production design.
+> A working prototype is in the repo root (`server.js` + `index.html` / `app.js` / `styles.css`). This document covers the full production design.
 
 ---
 
@@ -295,7 +295,7 @@ For production, use a transactional email provider (Resend, SendGrid, SES) with 
 - **XSS protection:** Markdown from the AI is HTML-escaped *before* formatting is applied. A strict CSP (Helmet) allows scripts only from this site and embeds only from `youtube-nocookie.com`.
 - **Email header-injection protection:** line breaks are removed from the subject, the email address is checked, and the message body is HTML-escaped.
 - **Abuse protection:** rate limits on all AI and support routes, a honeypot field, and Cloudflare Turnstile recommended for production.
-- **Privacy:** the privacy-enhanced YouTube embed (`youtube-nocookie.com`) loads only after a click, IPs are stored hashed, data is deleted on a schedule, and the privacy policy says what is sent to Google's Gemini API.
+- **Privacy:** the privacy-enhanced YouTube embed (`youtube-nocookie.com`) loads only after a click. There is no database: summaries live in an in-memory cache for up to 24 h and disappear on restart, chat history stays in the browser's `sessionStorage`, and a support ticket exists only as the email delivered to the team inbox — which includes the sender's IP address so abuse can be triaged (the privacy policy says so). The privacy policy also spells out what is sent to Google's Gemini API.
 - **HTTPS everywhere, secure cookies** (`HttpOnly; Secure; SameSite=Lax`) once accounts exist, and regular dependency audits (`npm audit`, Dependabot).
 
 ---
