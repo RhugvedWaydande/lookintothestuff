@@ -86,7 +86,7 @@ All AI routes are proxied — no key is ever sent to the client.
 
 | Route | Body | Returns |
 |---|---|---|
-| `GET /api/health` | — | `{ ok, demo, model, email }` |
+| `GET /api/health` | — | `{ ok, demo, model, email }` — add `?probe=1` for a live one-token Gemini call |
 | `POST /api/video/validate` | `{ url }` | `{ videoId, title, author, thumbnail }` — confirms the video exists and is public via oEmbed |
 | `POST /api/summarize` | `{ url, length }` | `{ videoId, summary }` — `length`: `short` \| `standard` \| `detailed` |
 | `POST /api/ask` | `{ url, question, history }` | `{ answer }` |
@@ -94,6 +94,10 @@ All AI routes are proxied — no key is ever sent to the client.
 | `POST /api/support` | `{ name, email, category, message, videoUrl }` | `{ ok, ticketId }` |
 
 Rate limits: **15 req/min** on AI routes, **5 req/hour** on support. Errors are JSON `{ error, code }`.
+
+### If the AI stops answering
+
+Open **`/api/health?probe=1`** on the deployed site. It makes one tiny Gemini call and returns the real upstream reason — wrong key (`AI_CONFIG`), quota (`QUOTA`), model not found, or `AI_DOWN` with the exact upstream status and message — instead of the friendly line the UI shows. The server log prints the same detail for every failed call.
 
 ---
 
