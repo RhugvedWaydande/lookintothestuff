@@ -18,6 +18,17 @@ const DEMO_MODE = !GEMINI_API_KEY; // no key → canned responses so the UI is s
 const GEMINI_URL = (m) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`;
 
+// Models are tried in order. A 503/429 from one (e.g. "this model is currently experiencing
+// high demand") falls through to the next, so a single saturated model can't take the site down.
+// Set GEMINI_FALLBACK_MODELS="gemini-x-flash,gemini-y-flash" in the host environment.
+const MODEL_CHAIN = [
+  ...new Set(
+    [GEMINI_MODEL, ...(process.env.GEMINI_FALLBACK_MODELS || '').split(',')]
+      .map((m) => m.trim())
+      .filter(Boolean)
+  ),
+];
+
 // Who may iframe the site. Locked to the site itself in production; open elsewhere so
 // local/preview tooling can embed it. Override with FRAME_ANCESTORS="'self',https://a.com".
 const FRAME_ANCESTORS = (
@@ -96,14 +107,34 @@ class ApiError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 
-/** Single entry point to Gemini, with timeout + retry on 429/5xx. */
-async function callGemini({ contents, systemInstruction, maxTokens = 2048, retries = 3 }) {
+/** Single entry point to Gemini: walks MODEL_CHAIN, retrying 429/5xx on each model. */
+async function callGemini(args) {
+  let lastErr;
+  for (let i = 0; i < MODEL_CHAIN.length; i++) {
+    const model = MODEL_CHAIN[i];
+    // Fail over quickly when there's a fallback waiting; retry properly on the last model.
+    const retries = i === MODEL_CHAIN.length - 1 ? args.retries ?? 3 : 1;
+    try {
+      return await callGeminiOnce({ ...args, model, retries });
+    } catch (e) {
+      lastErr = e;
+      const isCapacity = e.code === 'QUOTA' || e.code === 'AI_DOWN' || e.code === 'AI_UNAVAILABLE';
+      const hasNext = i < MODEL_CHAIN.length - 1;
+      if (!isCapacity || !hasNext) throw e;
+      console.warn(`[gemini] ${model} unavailable (${e.code}) — falling back to ${MODEL_CHAIN[i + 1]}`);
+    }
+  }
+  throw lastErr;
+}
+
+/** One model, with timeout + retry on 429/5xx. */
+async function callGeminiOnce({ contents, systemInstruction, maxTokens = 2048, retries = 3, model = MODEL_CHAIN[0] }) {
   const body = {
     contents,
     generationConfig: {
       temperature: 0.4,
       maxOutputTokens: maxTokens + 4096, // headroom: "thinking" tokens count toward the output limit
-      ...(/^gemini-3/.test(GEMINI_MODEL) && { thinkingConfig: { thinkingLevel: 'low' } }),
+      ...(/^gemini-3/.test(model) && { thinkingConfig: { thinkingLevel: 'low' } }),
     },
     ...(systemInstruction && { systemInstruction: { parts: [{ text: systemInstruction }] } }),
   };
@@ -111,7 +142,7 @@ async function callGemini({ contents, systemInstruction, maxTokens = 2048, retri
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 120_000);
     try {
-      const r = await fetch(GEMINI_URL(GEMINI_MODEL), {
+      const r = await fetch(GEMINI_URL(model), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
         body: JSON.stringify(body),
@@ -132,8 +163,8 @@ async function callGemini({ contents, systemInstruction, maxTokens = 2048, retri
         continue;
       }
       // Always log why upstream failed — the browser gets a friendly line, the host log gets the truth.
-      console.error(`[gemini] upstream ${r.status} · model ${GEMINI_MODEL} · ${msg || '(no message)'}`);
-      if (r.status === 404) throw new ApiError(502, 'AI_CONFIG', `AI model "${GEMINI_MODEL}" not found — update GEMINI_MODEL.`);
+      console.error(`[gemini] upstream ${r.status} · model ${model} · ${msg || '(no message)'}`);
+      if (r.status === 404) throw new ApiError(502, 'AI_CONFIG', `AI model "${model}" not found — update GEMINI_MODEL.`);
       if (r.status === 429) throw new ApiError(429, 'QUOTA', 'AI quota temporarily exhausted. Please try again shortly.');
       if (r.status === 400 && /video|file|uri|duration|token/i.test(msg))
         throw new ApiError(422, 'VIDEO_UNPROCESSABLE', 'This video could not be analysed (it may be too long, private, age-restricted or region-locked).');
@@ -141,7 +172,9 @@ async function callGemini({ contents, systemInstruction, maxTokens = 2048, retri
         throw new ApiError(502, 'AI_CONFIG', 'The AI service rejected our API key — check GEMINI_API_KEY in the host environment.');
       if (r.status === 401) throw new ApiError(502, 'AI_CONFIG', 'The AI service rejected our API key (401) — check GEMINI_API_KEY.');
       if (r.status === 400 || r.status === 403) throw new ApiError(502, 'AI_CONFIG', 'AI service rejected the request. ' + msg);
-      throw new ApiError(502, 'AI_DOWN', `AI service is unavailable right now (Gemini returned ${r.status}${msg ? `: ${msg}` : ''}).`);
+      if (r.status >= 500)
+        throw new ApiError(502, 'AI_UNAVAILABLE', `The AI model is at capacity right now (Gemini ${r.status}${msg ? `: ${msg}` : ''}). Please try again shortly.`);
+      throw new ApiError(502, 'AI_DOWN', `AI service returned an unexpected response (${r.status}${msg ? `: ${msg}` : ''}).`);
     } catch (e) {
       if (e instanceof ApiError) throw e;
       if (attempt < retries) continue;
@@ -177,7 +210,7 @@ const demo = {
 // ?probe=1 makes a tiny live call to Gemini so you can see the real upstream status
 // (bad key, wrong model, quota, outage) instead of guessing from the UI's friendly error.
 app.get('/api/health', aiLimiter, async (req, res) => {
-  const base = { ok: true, demo: DEMO_MODE, model: GEMINI_MODEL, email: EMAIL_PROVIDER };
+  const base = { ok: true, demo: DEMO_MODE, model: GEMINI_MODEL, models: MODEL_CHAIN, email: EMAIL_PROVIDER };
   if (req.query.probe !== '1') return res.json(base);
   if (DEMO_MODE) return res.json({ ...base, probe: { status: 'skipped', reason: 'no GEMINI_API_KEY configured' } });
   try {

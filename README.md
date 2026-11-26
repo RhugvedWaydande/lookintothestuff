@@ -49,6 +49,7 @@ Copy `.env.example` to `.env`. Every value is optional — the app degrades grac
 |---|---|---|
 | `GEMINI_API_KEY` | for real AI | From [AI Studio](https://aistudio.google.com/apikey). Unset ⇒ demo mode |
 | `GEMINI_MODEL` | no | Model name, default `gemini-3.8-flash`. Must exist for your key — verify in the [model list](https://ai.google.dev/gemini-api/docs/models) |
+| `GEMINI_FALLBACK_MODELS` | no | Comma-separated models tried in order if the primary returns 503 *"experiencing high demand"* or runs out of quota. Keeps the site up when a model is saturated |
 | `SUPPORT_EMAIL` | for support | Where tickets are delivered |
 | `SMTP_FROM` | for support | Verified sender address |
 | `BREVO_API_KEY` | for support (A) | Brevo HTTPS API — works on hosts that block SMTP |
@@ -97,7 +98,17 @@ Rate limits: **15 req/min** on AI routes, **5 req/hour** on support. Errors are 
 
 ### If the AI stops answering
 
-Open **`/api/health?probe=1`** on the deployed site. It makes one tiny Gemini call and returns the real upstream reason — wrong key (`AI_CONFIG`), quota (`QUOTA`), model not found, or `AI_DOWN` with the exact upstream status and message — instead of the friendly line the UI shows. The server log prints the same detail for every failed call.
+Open **`/api/health?probe=1`** on the deployed site. It makes one tiny Gemini call and returns the real upstream reason — wrong key (`AI_CONFIG`), quota (`QUOTA`), model not found, or `AI_UNAVAILABLE` with the exact upstream status and message — instead of the friendly line the UI shows. The server log prints the same detail for every failed call.
+
+The most common cause is `503 This model is currently experiencing high demand` — the model is saturated on Google's side, not a misconfiguration. On its own that recovers within minutes; to stay up through it, set `GEMINI_FALLBACK_MODELS` to one or two other models your key can reach:
+
+```bash
+# list the models your key actually has (run locally — never commit the key)
+curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY" \
+  | grep -o '"name": "models/[^"]*"'
+```
+
+Failover is fast (~1 s per model) and logged as `[gemini] <model> unavailable — falling back to <model>`.
 
 ---
 
