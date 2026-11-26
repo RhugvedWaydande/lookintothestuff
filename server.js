@@ -109,22 +109,22 @@ class ApiError extends Error {
 
 /** Single entry point to Gemini: walks MODEL_CHAIN, retrying 429/5xx on each model. */
 async function callGemini(args) {
-  let lastErr;
+  let firstErr;
   for (let i = 0; i < MODEL_CHAIN.length; i++) {
     const model = MODEL_CHAIN[i];
-    // Fail over quickly when there's a fallback waiting; retry properly on the last model.
-    const retries = i === MODEL_CHAIN.length - 1 ? args.retries ?? 3 : 1;
+    const next = MODEL_CHAIN[i + 1];
+    // Fail over quickly when there's a backup waiting; retry properly on the last model.
+    const retries = next ? 1 : args.retries ?? 3;
     try {
       return await callGeminiOnce({ ...args, model, retries });
     } catch (e) {
-      lastErr = e;
-      const isCapacity = e.code === 'QUOTA' || e.code === 'AI_DOWN' || e.code === 'AI_UNAVAILABLE';
-      const hasNext = i < MODEL_CHAIN.length - 1;
-      if (!isCapacity || !hasNext) throw e;
-      console.warn(`[gemini] ${model} unavailable (${e.code}) — falling back to ${MODEL_CHAIN[i + 1]}`);
+      // Any failure on a backup model (bad name, no video support, quota) just moves on.
+      // If every model fails, surface the first one — that's the config the owner chose.
+      firstErr = firstErr || e;
+      if (!next) throw firstErr;
+      console.warn(`[gemini] ${model} failed (${e.code}) — trying ${next}`);
     }
   }
-  throw lastErr;
 }
 
 /** One model, with timeout + retry on 429/5xx. */
@@ -154,7 +154,7 @@ async function callGeminiOnce({ contents, systemInstruction, maxTokens = 2048, r
         if (!cand) throw new ApiError(422, 'BLOCKED', 'The AI declined to process this content (safety filter).');
         const text = (cand.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('').trim();
         if (!text) throw new ApiError(422, 'EMPTY', 'The AI returned an empty response. Try again.');
-        return { text, usage: j.usageMetadata };
+        return { text, usage: j.usageMetadata, model };
       }
       const msg = (j.error?.message || '').replace(/\s+/g, ' ').slice(0, 300);
       if ((r.status === 429 || r.status >= 500) && attempt < retries) {
@@ -214,12 +214,12 @@ app.get('/api/health', aiLimiter, async (req, res) => {
   if (req.query.probe !== '1') return res.json(base);
   if (DEMO_MODE) return res.json({ ...base, probe: { status: 'skipped', reason: 'no GEMINI_API_KEY configured' } });
   try {
-    const { text } = await callGemini({
+    const { text, model } = await callGemini({
       contents: [{ role: 'user', parts: [{ text: 'Reply with the single word: ok' }] }],
       maxTokens: 8,
       retries: 0,
     });
-    res.json({ ...base, probe: { status: 'ok', reply: text.slice(0, 40) } });
+    res.json({ ...base, probe: { status: 'ok', answeredBy: model, reply: text.slice(0, 40) } });
   } catch (e) {
     res.json({ ...base, ok: false, probe: { status: 'error', code: e.code || 'UNKNOWN', message: e.message } });
   }
