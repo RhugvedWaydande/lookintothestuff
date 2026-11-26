@@ -121,6 +121,7 @@ To change a key: Render → your service → **Environment** → edit → **Save
 | Badge says **demo mode** | `GEMINI_API_KEY` is missing → add it in Render → Environment |
 | "AI service rejected the request. API key not valid" | Key was copied with spaces or is wrong → copy it again from AI Studio |
 | "AI model … not found" | The model name changed → set `GEMINI_MODEL` to a current one from https://ai.google.dev/gemini-api/docs/models |
+| "AI service is unavailable right now (…)" | Gemini returned an error. Open `<your-site>/api/health?probe=1` — it names the real cause (bad key, quota, model, outage). Often a transient Google outage: wait a minute and retry |
 | "This video could not be analysed" | The video is private, age-restricted or too long → try another. On the free tier, keep videos under about 45 min |
 | Support says "could not send your message" | Check Render **Logs** for `Brevo 4xx`: **401** = wrong API key; **400 sender** = `SMTP_FROM` isn't a verified sender |
 | Build fails: "Cannot find module" | `package.json` or `server.js` wasn't uploaded to the **top level** of the repo (not inside a subfolder) |

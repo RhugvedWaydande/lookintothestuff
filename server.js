@@ -97,7 +97,7 @@ class ApiError extends Error {
 }
 
 /** Single entry point to Gemini, with timeout + retry on 429/5xx. */
-async function callGemini({ contents, systemInstruction, maxTokens = 2048, retries = 2 }) {
+async function callGemini({ contents, systemInstruction, maxTokens = 2048, retries = 3 }) {
   const body = {
     contents,
     generationConfig: {
@@ -125,17 +125,23 @@ async function callGemini({ contents, systemInstruction, maxTokens = 2048, retri
         if (!text) throw new ApiError(422, 'EMPTY', 'The AI returned an empty response. Try again.');
         return { text, usage: j.usageMetadata };
       }
-      const msg = j.error?.message || '';
+      const msg = (j.error?.message || '').replace(/\s+/g, ' ').slice(0, 300);
       if ((r.status === 429 || r.status >= 500) && attempt < retries) {
+        console.warn(`[gemini] ${r.status} (attempt ${attempt + 1}/${retries + 1}), retrying: ${msg || 'no message'}`);
         await new Promise((res) => setTimeout(res, 1000 * 2 ** attempt));
         continue;
       }
+      // Always log why upstream failed — the browser gets a friendly line, the host log gets the truth.
+      console.error(`[gemini] upstream ${r.status} · model ${GEMINI_MODEL} · ${msg || '(no message)'}`);
       if (r.status === 404) throw new ApiError(502, 'AI_CONFIG', `AI model "${GEMINI_MODEL}" not found — update GEMINI_MODEL.`);
       if (r.status === 429) throw new ApiError(429, 'QUOTA', 'AI quota temporarily exhausted. Please try again shortly.');
       if (r.status === 400 && /video|file|uri|duration|token/i.test(msg))
         throw new ApiError(422, 'VIDEO_UNPROCESSABLE', 'This video could not be analysed (it may be too long, private, age-restricted or region-locked).');
+      if ((r.status === 400 || r.status === 401) && /api[\s_-]?key|credential|unauthori[sz]ed|permission/i.test(msg))
+        throw new ApiError(502, 'AI_CONFIG', 'The AI service rejected our API key — check GEMINI_API_KEY in the host environment.');
+      if (r.status === 401) throw new ApiError(502, 'AI_CONFIG', 'The AI service rejected our API key (401) — check GEMINI_API_KEY.');
       if (r.status === 400 || r.status === 403) throw new ApiError(502, 'AI_CONFIG', 'AI service rejected the request. ' + msg);
-      throw new ApiError(502, 'AI_DOWN', 'AI service is unavailable right now.');
+      throw new ApiError(502, 'AI_DOWN', `AI service is unavailable right now (Gemini returned ${r.status}${msg ? `: ${msg}` : ''}).`);
     } catch (e) {
       if (e instanceof ApiError) throw e;
       if (attempt < retries) continue;
@@ -168,7 +174,23 @@ const demo = {
 };
 
 /* ---------------- Routes ---------------- */
-app.get('/api/health', (_req, res) => res.json({ ok: true, demo: DEMO_MODE, model: GEMINI_MODEL, email: EMAIL_PROVIDER }));
+// ?probe=1 makes a tiny live call to Gemini so you can see the real upstream status
+// (bad key, wrong model, quota, outage) instead of guessing from the UI's friendly error.
+app.get('/api/health', aiLimiter, async (req, res) => {
+  const base = { ok: true, demo: DEMO_MODE, model: GEMINI_MODEL, email: EMAIL_PROVIDER };
+  if (req.query.probe !== '1') return res.json(base);
+  if (DEMO_MODE) return res.json({ ...base, probe: { status: 'skipped', reason: 'no GEMINI_API_KEY configured' } });
+  try {
+    const { text } = await callGemini({
+      contents: [{ role: 'user', parts: [{ text: 'Reply with the single word: ok' }] }],
+      maxTokens: 8,
+      retries: 0,
+    });
+    res.json({ ...base, probe: { status: 'ok', reply: text.slice(0, 40) } });
+  } catch (e) {
+    res.json({ ...base, ok: false, probe: { status: 'error', code: e.code || 'UNKNOWN', message: e.message } });
+  }
+});
 
 app.post('/api/video/validate', aiLimiter, async (req, res, next) => {
   try {
