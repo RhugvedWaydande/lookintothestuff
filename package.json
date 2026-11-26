@@ -22,11 +22,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RhugvedWaydande/lookintothestuff-.git"
+    "url": "git+https://github.com/RhugvedWaydande/lookintothestuff.git"
   },
   "homepage": "https://lookintothestuff.onrender.com",
   "bugs": {
-    "url": "https://github.com/RhugvedWaydande/lookintothestuff-/issues"
+    "url": "https://github.com/RhugvedWaydande/lookintothestuff/issues"
   },
   "dependencies": {
     "dotenv": "^18.0.5",

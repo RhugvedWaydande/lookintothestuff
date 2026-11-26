@@ -15,7 +15,7 @@
 ---
 
 ## Step 0 — Get your own copy of the code
-The code is public at **https://github.com/RhugvedWaydande/lookintothestuff-**.
+The code is public at **https://github.com/RhugvedWaydande/lookintothestuff**.
 1. Open that page and click **Fork** (top right) → **Create fork**. You now have your own copy that Render can deploy.
 2. Everything lives at the **root** of the repo: `server.js`, `index.html`, `app.js`, `styles.css`, `package.json` and `render.yaml`. There are no sub-folders to worry about.
 
@@ -40,7 +40,7 @@ The code is public at **https://github.com/RhugvedWaydande/lookintothestuff-**.
 ---
 
 ## Step 3 — Point Render at your fork (2 min)
-1. If you haven't already, click **Fork** on **https://github.com/RhugvedWaydande/lookintothestuff-** so the code is under your own GitHub account.
+1. If you haven't already, click **Fork** on **https://github.com/RhugvedWaydande/lookintothestuff** so the code is under your own GitHub account.
 2. Render will connect to **your** fork in Step 4 — it needs permission to read it, so make sure you're signed in to Render with the same GitHub account.
 3. If you ever want a private copy instead: **+** (top right) → **Import repository** → paste the URL → choose a name → **Create**. Don't hand-upload files; the layouts that break are always the hand-uploaded ones.
    - ❌ Never commit a `.env` file or a `node_modules` folder — `.gitignore` already blocks both.
