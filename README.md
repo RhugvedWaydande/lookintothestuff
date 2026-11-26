@@ -28,8 +28,8 @@ Built in: server-side API proxy (the Gemini key never reaches the browser), 24 h
 ## Quick start
 
 ```bash
-git clone https://github.com/RhugvedWaydande/lookintothestuff-.git
-cd lookintothestuff-
+git clone https://github.com/RhugvedWaydande/lookintothestuff.git
+cd lookintothestuff
 npm install
 cp .env.example .env    # optional — see below
 npm start               # http://localhost:3000
